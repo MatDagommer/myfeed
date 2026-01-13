@@ -1,5 +1,5 @@
 .env
-.llamabot
+.llamabot/
 __pycache__/
 *.pyc
 .DS_Store
