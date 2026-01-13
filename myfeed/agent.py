@@ -11,6 +11,7 @@ from langgraph.graph.message import MessageGraph
 from pydantic import BaseModel
 import json
 import asyncio
+import traceback
 from datetime import datetime
 
 class NewsItem(BaseModel):
@@ -62,6 +63,7 @@ class NewsAgent:
                     })
             except Exception as e:
                 print(f"Error scraping {source_url}: {e}")
+                traceback.print_exc()
                 continue
         
         state.raw_articles = articles
@@ -83,7 +85,9 @@ class NewsAgent:
             text = ' '.join(chunk for chunk in chunks if chunk)
             
             return text[:1000]  # Limit content length
-        except:
+        except Exception as e:
+            print(f"Error extracting content from URL: {e}")
+            traceback.print_exc()
             return ""
 
     def _filter_articles(self, state: NewsletterState) -> NewsletterState:
@@ -127,6 +131,7 @@ class NewsAgent:
                     ))
             except Exception as e:
                 print(f"Error filtering article: {e}")
+                traceback.print_exc()
                 continue
         
         # Sort by relevance score
