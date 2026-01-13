@@ -1,6 +1,7 @@
 import schedule
 import time
 import threading
+import traceback
 from datetime import datetime
 import pytz
 from typing import List
@@ -36,6 +37,7 @@ class NewsletterScheduler:
                 
         except Exception as e:
             print(f"Error in newsletter generation/sending: {e}")
+            traceback.print_exc()
 
     def schedule_daily_newsletter(self):
         # Clear any existing scheduled jobs

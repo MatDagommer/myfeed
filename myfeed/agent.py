@@ -213,4 +213,9 @@ class NewsAgent:
     def generate_newsletter(self, topics: List[str]) -> str:
         initial_state = NewsletterState(topics=topics)
         result = self.graph.invoke(initial_state)
-        return result.newsletter_content
+        
+        # Handle both dict and NewsletterState return types
+        if isinstance(result, dict):
+            return result.get("newsletter_content", "")
+        else:
+            return result.newsletter_content
