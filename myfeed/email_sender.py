@@ -16,7 +16,7 @@ class EmailSender:
     def send_newsletter(self, content: str, subject: str = None) -> bool:
         try:
             if not subject:
-                subject = f"Your Daily Newsletter - {datetime.now().strftime('%B %d, %Y')}"
+                subject = f"Your Daily Newsletter 😎💨🥴🤖🌍🇫🇷🇺🇸 - {datetime.now().strftime('%B %d, %Y')}"
             
             # Create HTML version of the newsletter
             html_content = self._convert_to_html(content)
@@ -121,12 +121,28 @@ class EmailSender:
 </html>
         """)
         
-        # Simple markdown-like formatting
+        # Enhanced markdown-like formatting
+        import re
         formatted_content = content
+        
+        # Convert headers (### Title -> <h3>Title</h3>)
+        formatted_content = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', formatted_content, flags=re.MULTILINE)
+        formatted_content = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', formatted_content, flags=re.MULTILINE)
+        formatted_content = re.sub(r'^# (.*?)$', r'<h1>\1</h1>', formatted_content, flags=re.MULTILINE)
+        
+        # Convert bold text (**text** -> <strong>text</strong>)
+        formatted_content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', formatted_content)
+        
+        # Convert paragraphs (double newlines)
         formatted_content = formatted_content.replace('\n\n', '</p><p>')
+        formatted_content = '<p>' + formatted_content + '</p>'
+        
+        # Convert single newlines to line breaks
         formatted_content = formatted_content.replace('\n', '<br>')
-        formatted_content = formatted_content.replace('**', '<strong>', 1)
-        formatted_content = formatted_content.replace('**', '</strong>', 1)
+        
+        # Clean up empty paragraphs
+        formatted_content = formatted_content.replace('<p></p>', '')
+        formatted_content = formatted_content.replace('<p><br>', '<p>')
         
         return html_template.render(
             content=formatted_content,
