@@ -15,7 +15,7 @@ An intelligent newsletter system that uses LangGraph agents to scrape the web fo
 
 1. **Install Dependencies**
    ```bash
-   pip install -r requirements.txt
+   uv sync
    ```
 
 2. **Configuration**
@@ -38,10 +38,10 @@ An intelligent newsletter system that uses LangGraph agents to scrape the web fo
 
 ## Usage
 
-- **Test Configuration**: `python main.py test`
-- **Generate One Newsletter**: `python main.py run-once`
-- **Start Scheduler**: `python main.py start`
-- **View Configuration**: `python main.py config`
+- **Test Configuration**: `uv run python main.py test`
+- **Generate One Newsletter**: `uv run python main.py run-once`
+- **Start Scheduler**: `uv run python main.py start`
+- **View Configuration**: `uv run python main.py config`
 
 ## How It Works
 
