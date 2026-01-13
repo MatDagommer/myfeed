@@ -4,10 +4,13 @@ from bs4 import BeautifulSoup
 import feedparser
 from langchain_openai import ChatOpenAI
 from langchain.prompts import ChatPromptTemplate
+from langchain.agents import create_agent
+from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, END
 from langgraph.graph.message import MessageGraph
 from pydantic import BaseModel
 import json
+import asyncio
 from datetime import datetime
 from .config import settings
 
@@ -32,20 +35,31 @@ class NewsAgent:
             temperature=0.3
         )
         self.graph = self._create_graph()
-
-    def _create_graph(self) -> StateGraph:
-        workflow = StateGraph(NewsletterState)
-        
-        workflow.add_node("scrape_news", self._scrape_news)
-        workflow.add_node("filter_articles", self._filter_articles)
-        workflow.add_node("generate_newsletter", self._generate_newsletter)
-        
-        workflow.set_entry_point("scrape_news")
-        workflow.add_edge("scrape_news", "filter_articles")
-        workflow.add_edge("filter_articles", "generate_newsletter")
-        workflow.add_edge("generate_newsletter", END)
-        
-        return workflow.compile()
+        self.mcp_client = None
+        self.agent = None
+    
+    async def _initialize_agent(self):
+        """Initialize MCP client with available servers"""
+        if self.mcp_client is None:
+            self.mcp_client = MultiServerMCPClient(
+                {
+                    "math": {
+                        "transport": "stdio",
+                        "command": "python",
+                        "args": ["/path/to/math_server.py"],
+                    },
+                    "weather": {
+                        "transport": "http",
+                        "url": "http://localhost:8000/mcp",
+                    }
+                }
+            )
+            
+            tools = await self.mcp_client.get_tools()
+            self.agent = create_agent(
+                "claude-sonnet-4-5-20250929", 
+                tools
+            )
 
     def _scrape_news(self, state: NewsletterState) -> NewsletterState:
         sources = [
@@ -185,5 +199,5 @@ class NewsAgent:
 
     def generate_newsletter(self, topics: List[str]) -> str:
         initial_state = NewsletterState(topics=topics)
-        result = self.graph.invoke(initial_state)
+        result = self.agent.ainvoke(initial_state)
         return result.newsletter_content
