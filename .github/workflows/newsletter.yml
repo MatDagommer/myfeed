@@ -20,18 +20,11 @@ jobs:
       with:
         python-version: '3.11'
         
-    - name: Cache dependencies
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
-          
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      
     - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
+      run: uv sync
         
     - name: Create .env file
       run: |
@@ -46,7 +39,7 @@ jobs:
         echo "TIMEZONE=${{ secrets.TIMEZONE }}" >> .env
         
     - name: Generate and send newsletter
-      run: python main.py run-once
+      run: uv run python main.py run-once
       
     - name: Upload logs on failure
       if: failure()
