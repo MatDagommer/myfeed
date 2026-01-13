@@ -26,20 +26,18 @@ jobs:
     - name: Install dependencies
       run: uv sync
         
-    - name: Create .env file
-      run: |
-        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
-        echo "SMTP_SERVER=${{ secrets.SMTP_SERVER }}" >> .env
-        echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
-        echo "EMAIL_ADDRESS=${{ secrets.EMAIL_ADDRESS }}" >> .env
-        echo "EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}" >> .env
-        echo "TO_EMAIL=${{ secrets.TO_EMAIL }}" >> .env
-        echo "TOPICS=${{ secrets.TOPICS }}" >> .env
-        echo "NEWSLETTER_TIME=${{ secrets.NEWSLETTER_TIME }}" >> .env
-        echo "TIMEZONE=${{ secrets.TIMEZONE }}" >> .env
-        
     - name: Generate and send newsletter
-      run: uv run python main.py run-once
+      run: |
+        uv run python main.py run-once \
+          --openai-api-key "${{ secrets.OPENAI_API_KEY }}" \
+          --smtp-server "${{ secrets.SMTP_SERVER }}" \
+          --smtp-port "${{ secrets.SMTP_PORT }}" \
+          --email-address "${{ secrets.EMAIL_ADDRESS }}" \
+          --email-password "${{ secrets.EMAIL_PASSWORD }}" \
+          --to-email "${{ secrets.TO_EMAIL }}" \
+          --topics "${{ secrets.TOPICS }}" \
+          --newsletter-time "${{ secrets.NEWSLETTER_TIME }}" \
+          --timezone "${{ secrets.TIMEZONE }}"
       
     - name: Upload logs on failure
       if: failure()
