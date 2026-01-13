@@ -1,0 +1,56 @@
+name: Daily Newsletter
+
+on:
+  schedule:
+    # Run every day at 8:00 AM UTC (adjust for your timezone)
+    - cron: '0 8 * * *'
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  send-newsletter:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+          
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Create .env file
+      run: |
+        echo "OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}" >> .env
+        echo "SMTP_SERVER=${{ secrets.SMTP_SERVER }}" >> .env
+        echo "SMTP_PORT=${{ secrets.SMTP_PORT }}" >> .env
+        echo "EMAIL_ADDRESS=${{ secrets.EMAIL_ADDRESS }}" >> .env
+        echo "EMAIL_PASSWORD=${{ secrets.EMAIL_PASSWORD }}" >> .env
+        echo "TO_EMAIL=${{ secrets.TO_EMAIL }}" >> .env
+        echo "TOPICS=${{ secrets.TOPICS }}" >> .env
+        echo "NEWSLETTER_TIME=${{ secrets.NEWSLETTER_TIME }}" >> .env
+        echo "TIMEZONE=${{ secrets.TIMEZONE }}" >> .env
+        
+    - name: Generate and send newsletter
+      run: python main.py run-once
+      
+    - name: Upload logs on failure
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: newsletter-logs
+        path: "*.log"
