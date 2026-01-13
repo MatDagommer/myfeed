@@ -7,9 +7,9 @@ from dotenv import load_dotenv
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from src.scheduler import NewsletterScheduler
-from src.email_sender import EmailSender
-from src.config import settings
+from myfeed.scheduler import NewsletterScheduler
+from myfeed.email_sender import EmailSender
+from myfeed.config import settings
 
 def main():
     # Load environment variables
