@@ -1,4 +1,5 @@
 import smtplib
+import traceback
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from jinja2 import Template
@@ -44,6 +45,7 @@ class EmailSender:
             
         except Exception as e:
             print(f"Failed to send newsletter: {e}")
+            traceback.print_exc()
             return False
 
     def _convert_to_html(self, content: str) -> str:
@@ -140,4 +142,5 @@ class EmailSender:
                 return True
         except Exception as e:
             print(f"Email connection test failed: {e}")
+            traceback.print_exc()
             return False
