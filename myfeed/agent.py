@@ -119,7 +119,25 @@ class NewsAgent:
                     content=article["content"]
                 ))
                 
-                result = json.loads(response.content)
+                print(f"LLM Response for article '{article['title'][:50]}...': {response.content}")
+                
+                if not response.content or not response.content.strip():
+                    print(f"Warning: Empty response from LLM for article: {article['title']}")
+                    continue
+                
+                # Try to extract JSON from the response if it's wrapped in markdown or other text
+                content = response.content.strip()
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+                
+                try:
+                    result = json.loads(content)
+                except json.JSONDecodeError:
+                    print(f"Failed to parse JSON. Raw content: {repr(response.content)}")
+                    continue
                 
                 if result["relevance_score"] >= 6:  # Only include relevant articles
                     filtered_articles.append(NewsItem(
