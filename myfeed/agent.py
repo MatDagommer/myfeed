@@ -12,7 +12,6 @@ from pydantic import BaseModel
 import json
 import asyncio
 from datetime import datetime
-from .config import settings
 
 class NewsItem(BaseModel):
     title: str
@@ -28,10 +27,10 @@ class NewsletterState(BaseModel):
     newsletter_content: str = ""
 
 class NewsAgent:
-    def __init__(self):
+    def __init__(self, openai_api_key: str):
         self.llm = ChatOpenAI(
             model="gpt-4o-mini",
-            openai_api_key=settings.openai_api_key,
+            openai_api_key=openai_api_key,
             temperature=0.3
         )
         self.graph = self._create_graph()

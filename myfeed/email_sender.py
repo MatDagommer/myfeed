@@ -3,15 +3,14 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from jinja2 import Template
 from datetime import datetime
-from .config import settings
 
 class EmailSender:
-    def __init__(self):
-        self.smtp_server = settings.smtp_server
-        self.smtp_port = settings.smtp_port
-        self.email_address = settings.email_address
-        self.email_password = settings.email_password
-        self.to_email = settings.to_email
+    def __init__(self, smtp_server: str, smtp_port: int, email_address: str, email_password: str, to_email: str):
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+        self.email_address = email_address
+        self.email_password = email_password
+        self.to_email = to_email
 
     def send_newsletter(self, content: str, subject: str = None) -> bool:
         try:

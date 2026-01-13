@@ -3,14 +3,17 @@ import time
 import threading
 from datetime import datetime
 import pytz
+from typing import List
 from .agent import NewsAgent
 from .email_sender import EmailSender
-from .config import settings
 
 class NewsletterScheduler:
-    def __init__(self):
-        self.agent = NewsAgent()
-        self.email_sender = EmailSender()
+    def __init__(self, openai_api_key: str, email_sender: EmailSender, topics: List[str], newsletter_time: str, timezone: str):
+        self.agent = NewsAgent(openai_api_key)
+        self.email_sender = email_sender
+        self.topics = topics
+        self.newsletter_time = newsletter_time
+        self.timezone = timezone
         self.running = False
         self.thread = None
 
@@ -19,7 +22,7 @@ class NewsletterScheduler:
             print(f"Starting newsletter generation at {datetime.now()}")
             
             # Generate newsletter content
-            content = self.agent.generate_newsletter(settings.topics)
+            content = self.agent.generate_newsletter(self.topics)
             
             if content:
                 # Send newsletter
@@ -40,14 +43,14 @@ class NewsletterScheduler:
         
         # Convert time to user's timezone
         try:
-            user_tz = pytz.timezone(settings.timezone)
-            schedule.every().day.at(settings.newsletter_time).do(self.generate_and_send_newsletter)
-            print(f"Newsletter scheduled daily at {settings.newsletter_time} ({settings.timezone})")
+            user_tz = pytz.timezone(self.timezone)
+            schedule.every().day.at(self.newsletter_time).do(self.generate_and_send_newsletter)
+            print(f"Newsletter scheduled daily at {self.newsletter_time} ({self.timezone})")
         except Exception as e:
             print(f"Error setting up schedule: {e}")
             # Fallback to UTC
-            schedule.every().day.at(settings.newsletter_time).do(self.generate_and_send_newsletter)
-            print(f"Newsletter scheduled daily at {settings.newsletter_time} (UTC)")
+            schedule.every().day.at(self.newsletter_time).do(self.generate_and_send_newsletter)
+            print(f"Newsletter scheduled daily at {self.newsletter_time} (UTC)")
 
     def start_scheduler(self):
         if self.running:
