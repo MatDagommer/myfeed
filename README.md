@@ -1,6 +1,6 @@
 # MyFeed: My AI-Powered Newsletter
 
-An intelligent newsletter system that uses LangGraph agents to scrape the web for relevant articles based on your interests and sends you a personalized daily newsletter at 8am.
+An intelligent newsletter system that uses an agent to scrape the web for relevant articles based on my interests and sends me a personalized daily newsletter.
 
 ## Features
 
