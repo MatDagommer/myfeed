@@ -117,62 +117,25 @@ class NewsAgent:
                 response = requests.get(scholar_url, headers=headers, timeout=10)
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
-                # Find all paper results
-                results = soup.find_all('div', class_='gs_r gs_or gs_scl')
-                
-                for result in results[:3]:  # Get top 3 papers per topic
-                    try:
-                        # Extract paper information
-                        title_elem = result.find('h3', class_='gs_rt')
-                        if not title_elem:
-                            continue
-                            
-                        title_link = title_elem.find('a')
-                        title = title_link.get_text() if title_link else title_elem.get_text()
-                        url = title_link.get('href') if title_link else ""
-                        
-                        # Extract authors and publication info
-                        authors_elem = result.find('div', class_='gs_a')
-                        authors_text = authors_elem.get_text() if authors_elem else ""
-                        
-                        # Parse authors and year
-                        authors = ""
-                        year = ""
-                        if authors_text:
-                            parts = authors_text.split(' - ')
-                            if parts:
-                                authors = parts[0].strip()
-                            # Try to extract year
-                            import re
-                            year_match = re.search(r'\b(19|20)\d{2}\b', authors_text)
-                            if year_match:
-                                year = year_match.group()
-                        
-                        # Extract summary/snippet
-                        summary_elem = result.find('span', class_='gs_rs')
-                        summary = summary_elem.get_text() if summary_elem else ""
-                        
-                        # Extract citation count
-                        citations = ""
-                        cite_elem = result.find('div', class_='gs_fl')
-                        if cite_elem:
-                            cite_link = cite_elem.find('a', string=lambda text: text and 'Cited by' in text)
-                            if cite_link:
-                                citations = cite_link.get_text()
-                        
-                        papers.append({
-                            "title": title.strip(),
-                            "authors": authors,
-                            "summary": summary.strip(),
-                            "url": url,
-                            "year": year,
-                            "citations": citations,
-                            "search_topic": topic
-                        })
-                        
-                    except Exception as e:
-                        print(f"Error parsing individual paper: {e}")
-                        continue
+                papers = []
+ 
+                for el in soup.select(".gs_r"):
+                    papers.append({
+                        "title": el.select(".gs_rt")[0].text,
+                        "title_link": el.select(".gs_rt a")[0]["href"],
+                        "id": el.select(".gs_rt a")[0]["id"],
+                        "displayed_link": el.select(".gs_a")[0].text,
+                        "snippet": el.select(".gs_rs")[0].text.replace("\n", ""),
+                        "cited_by_count": el.select(".gs_nph+ a")[0].text,
+                        "cited_link": "https://scholar.google.com" + el.select(".gs_nph+ a")[0]["href"],
+                        "versions_count": el.select("a~ a+ .gs_nph")[0].text,
+                        "versions_link": "https://scholar.google.com" + el.select("a~ a+ .gs_nph")[0]["href"] if el.select("a~ a+ .gs_nph")[0].text else "",
+                    })
+        
+                for i in range(len(papers)):
+                    papers[i] = {key: value for key, value in papers[i].items() if value != "" and value is not None}
+        
+                print(papers)
                         
             except Exception as e:
                 print(f"Error scraping papers for topic '{topic}': {e}")
