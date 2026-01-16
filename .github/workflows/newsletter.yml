@@ -35,9 +35,7 @@ jobs:
           --email-address "${{ secrets.EMAIL_ADDRESS }}" \
           --email-password "${{ secrets.EMAIL_PASSWORD }}" \
           --to-email "${{ secrets.TO_EMAIL }}" \
-          --topics "${{ secrets.TOPICS }}" \
-          --newsletter-time "${{ secrets.NEWSLETTER_TIME }}" \
-          --timezone "${{ secrets.TIMEZONE }}"
+          --topics "${{ secrets.TOPICS }}"
       
     - name: Upload logs on failure
       if: failure()
