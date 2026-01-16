@@ -152,12 +152,13 @@ class NewsAgent:
                             "title": title,
                             "title_link": title_link,
                             "id": paper_id,
-                            "displayed_link": displayed_link,
-                            "snippet": snippet,
-                            "cited_by_count": cited_by_count,
+                            "authors": displayed_link,
+                            "summary": snippet,
+                            "citations": cited_by_count,
                             "cited_link": cited_link,
                             "versions_count": versions_count,
                             "versions_link": versions_link,
+                            "topics": topic
                         })
                     except Exception as e:
                         print(f"Error processing paper element: {e}")
@@ -252,7 +253,6 @@ class NewsAgent:
         
         Paper Title: {title}
         Authors: {authors}
-        Year: {year}
         Abstract/Summary: {summary}
         Citations: {citations}
         
@@ -272,7 +272,6 @@ class NewsAgent:
                     topics=", ".join(state.topics),
                     title=paper["title"],
                     authors=paper["authors"],
-                    year=paper["year"],
                     summary=paper["summary"],
                     citations=paper["citations"]
                 ))
