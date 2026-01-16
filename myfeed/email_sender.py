@@ -99,6 +99,19 @@ class EmailSender:
             padding: 15px;
             border-radius: 5px;
         }
+        .paper {
+            border-left: 4px solid #e74c3c;
+            padding-left: 15px;
+            margin: 20px 0;
+            background-color: #fdf2f2;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .paper-meta {
+            font-size: 14px;
+            color: #7f8c8d;
+            margin: 5px 0;
+        }
         .footer {
             margin-top: 30px;
             padding-top: 20px;
@@ -133,6 +146,12 @@ class EmailSender:
         # Convert bold text (**text** -> <strong>text</strong>)
         formatted_content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', formatted_content)
         
+        # Handle paper sections - wrap papers in appropriate divs
+        formatted_content = re.sub(r'(## Recent Papers.*?)(?=## |\Z)', self._format_papers_section, formatted_content, flags=re.DOTALL)
+        
+        # Handle news sections - wrap articles in appropriate divs
+        formatted_content = re.sub(r'(## Latest News.*?)(?=## Recent Papers|## |\Z)', self._format_news_section, formatted_content, flags=re.DOTALL)
+        
         # Convert paragraphs (double newlines)
         formatted_content = formatted_content.replace('\n\n', '</p><p>')
         formatted_content = '<p>' + formatted_content + '</p>'
@@ -148,6 +167,20 @@ class EmailSender:
             content=formatted_content,
             date=datetime.now().strftime('%B %d, %Y at %I:%M %p')
         )
+
+    def _format_papers_section(self, match):
+        content = match.group(1)
+        # Wrap individual papers in paper divs
+        import re
+        content = re.sub(r'(\d+\.\s+<strong>.*?</strong>.*?)(?=\d+\.\s+<strong>|\Z)', r'<div class="paper">\1</div>', content, flags=re.DOTALL)
+        return content
+
+    def _format_news_section(self, match):
+        content = match.group(1)
+        # Wrap individual articles in article divs
+        import re
+        content = re.sub(r'(\d+\.\s+<strong>.*?</strong>.*?)(?=\d+\.\s+<strong>|\Z)', r'<div class="article">\1</div>', content, flags=re.DOTALL)
+        return content
 
     def test_email_connection(self) -> bool:
         try:

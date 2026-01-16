@@ -6,12 +6,12 @@ import os
 # Add src to path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
 
-from myfeed.scheduler import NewsletterScheduler
+from myfeed.generator import NewsletterGenerator
 from myfeed.email_sender import EmailSender
 
 def main():
     parser = argparse.ArgumentParser(description='AI-Powered Newsletter System')
-    parser.add_argument('command', choices=['start', 'test', 'run-once', 'config'], 
+    parser.add_argument('command', choices=['test', 'run-once', 'config'], 
                        help='Command to execute')
     parser.add_argument('--openai-api-key', required=True,
                        help='OpenAI API key')
@@ -27,10 +27,6 @@ def main():
                        help='Recipient email address')
     parser.add_argument('--topics', default="",
                        help='Comma-separated list of topics')
-    parser.add_argument('--newsletter-time', default="08:00",
-                       help='Newsletter time (default: 08:00)')
-    parser.add_argument('--timezone', default="UTC",
-                       help='Timezone (default: UTC)')
     
     args = parser.parse_args()
     
@@ -41,7 +37,6 @@ def main():
         print("Current Configuration:")
         print(f"Topics: {', '.join(topics_list)}")
         print(f"Email: {args.to_email}")
-        print(f"Schedule: {args.newsletter_time} ({args.timezone})")
         print(f"SMTP Server: {args.smtp_server}:{args.smtp_port}")
         return
     
@@ -59,14 +54,12 @@ def main():
             
             # Test newsletter generation and sending
             print("Generating test newsletter...")
-            scheduler = NewsletterScheduler(
+            generator = NewsletterGenerator(
                 openai_api_key=args.openai_api_key,
                 email_sender=email_sender,
-                topics=topics_list,
-                newsletter_time=args.newsletter_time,
-                timezone=args.timezone
+                topics=topics_list
             )
-            scheduler.run_once()
+            generator.run()
         else:
             print("✗ Email connection failed")
             print("Please check your email configuration")
@@ -81,49 +74,13 @@ def main():
             email_password=args.email_password,
             to_email=args.to_email
         )
-        scheduler = NewsletterScheduler(
+        generator = NewsletterGenerator(
             openai_api_key=args.openai_api_key,
             email_sender=email_sender,
-            topics=topics_list,
-            newsletter_time=args.newsletter_time,
-            timezone=args.timezone
+            topics=topics_list
         )
-        scheduler.run_once()
+        generator.run()
         return
-    
-    if args.command == 'start':
-        print("Starting newsletter scheduler...")
-        print(f"Topics: {', '.join(topics_list)}")
-        print(f"Scheduled for: {args.newsletter_time} ({args.timezone})")
-        
-        email_sender = EmailSender(
-            smtp_server=args.smtp_server,
-            smtp_port=args.smtp_port,
-            email_address=args.email_address,
-            email_password=args.email_password,
-            to_email=args.to_email
-        )
-        scheduler = NewsletterScheduler(
-            openai_api_key=args.openai_api_key,
-            email_sender=email_sender,
-            topics=topics_list,
-            newsletter_time=args.newsletter_time,
-            timezone=args.timezone
-        )
-        
-        try:
-            scheduler.start_scheduler()
-            print("Scheduler started. Press Ctrl+C to stop.")
-            
-            # Keep the main thread alive
-            import time
-            while True:
-                time.sleep(1)
-                
-        except KeyboardInterrupt:
-            print("\nStopping scheduler...")
-            scheduler.stop_scheduler()
-            print("Scheduler stopped.")
 
 if __name__ == "__main__":
     main()
