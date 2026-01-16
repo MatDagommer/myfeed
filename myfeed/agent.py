@@ -21,10 +21,21 @@ class NewsItem(BaseModel):
     source: str
     relevance_score: float
 
+class PaperItem(BaseModel):
+    title: str
+    authors: str
+    summary: str
+    url: str
+    year: str
+    citations: str
+    relevance_score: float
+
 class NewsletterState(BaseModel):
     topics: List[str]
     raw_articles: List[Dict[str, Any]] = []
     filtered_articles: List[NewsItem] = []
+    raw_papers: List[Dict[str, Any]] = []
+    filtered_papers: List[PaperItem] = []
     newsletter_content: str = ""
 
 class NewsAgent:
@@ -89,6 +100,87 @@ class NewsAgent:
             print(f"Error extracting content from URL: {e}")
             traceback.print_exc()
             return ""
+
+    def _scrape_papers(self, state: NewsletterState) -> NewsletterState:
+        papers = []
+        
+        for topic in state.topics:
+            try:
+                # Construct Google Scholar search URL
+                search_query = topic.replace(" ", "+")
+                scholar_url = f"https://scholar.google.com/scholar?q={search_query}&hl=en&as_sdt=0%2C5&as_vis=1"
+                
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                
+                response = requests.get(scholar_url, headers=headers, timeout=10)
+                soup = BeautifulSoup(response.content, 'html.parser')
+                
+                # Find all paper results
+                results = soup.find_all('div', class_='gs_r gs_or gs_scl')
+                
+                for result in results[:3]:  # Get top 3 papers per topic
+                    try:
+                        # Extract paper information
+                        title_elem = result.find('h3', class_='gs_rt')
+                        if not title_elem:
+                            continue
+                            
+                        title_link = title_elem.find('a')
+                        title = title_link.get_text() if title_link else title_elem.get_text()
+                        url = title_link.get('href') if title_link else ""
+                        
+                        # Extract authors and publication info
+                        authors_elem = result.find('div', class_='gs_a')
+                        authors_text = authors_elem.get_text() if authors_elem else ""
+                        
+                        # Parse authors and year
+                        authors = ""
+                        year = ""
+                        if authors_text:
+                            parts = authors_text.split(' - ')
+                            if parts:
+                                authors = parts[0].strip()
+                            # Try to extract year
+                            import re
+                            year_match = re.search(r'\b(19|20)\d{2}\b', authors_text)
+                            if year_match:
+                                year = year_match.group()
+                        
+                        # Extract summary/snippet
+                        summary_elem = result.find('span', class_='gs_rs')
+                        summary = summary_elem.get_text() if summary_elem else ""
+                        
+                        # Extract citation count
+                        citations = ""
+                        cite_elem = result.find('div', class_='gs_fl')
+                        if cite_elem:
+                            cite_link = cite_elem.find('a', string=lambda text: text and 'Cited by' in text)
+                            if cite_link:
+                                citations = cite_link.get_text()
+                        
+                        papers.append({
+                            "title": title.strip(),
+                            "authors": authors,
+                            "summary": summary.strip(),
+                            "url": url,
+                            "year": year,
+                            "citations": citations,
+                            "search_topic": topic
+                        })
+                        
+                    except Exception as e:
+                        print(f"Error parsing individual paper: {e}")
+                        continue
+                        
+            except Exception as e:
+                print(f"Error scraping papers for topic '{topic}': {e}")
+                traceback.print_exc()
+                continue
+        
+        state.raw_papers = papers
+        return state
 
     def _filter_articles(self, state: NewsletterState) -> NewsletterState:
         filter_prompt = ChatPromptTemplate.from_template("""
@@ -158,23 +250,101 @@ class NewsAgent:
         
         return state
 
+    def _filter_papers(self, state: NewsletterState) -> NewsletterState:
+        filter_prompt = ChatPromptTemplate.from_template("""
+        You are an academic newsletter curator. Given these topics of interest: {topics}
+        
+        Rate the relevance of this research paper on a scale of 0-10 and provide a concise academic summary.
+        
+        Paper Title: {title}
+        Authors: {authors}
+        Year: {year}
+        Abstract/Summary: {summary}
+        Citations: {citations}
+        
+        Respond in JSON format:
+        {{
+            "relevance_score": <score>,
+            "summary": "<academic_summary>",
+            "reasoning": "<brief_reasoning>"
+        }}
+        """)
+        
+        filtered_papers = []
+        
+        for paper in state.raw_papers:
+            try:
+                response = self.llm.invoke(filter_prompt.format(
+                    topics=", ".join(state.topics),
+                    title=paper["title"],
+                    authors=paper["authors"],
+                    year=paper["year"],
+                    summary=paper["summary"],
+                    citations=paper["citations"]
+                ))
+                
+                print(f"LLM Response for paper '{paper['title'][:50]}...': {response.content}")
+                
+                if not response.content or not response.content.strip():
+                    print(f"Warning: Empty response from LLM for paper: {paper['title']}")
+                    continue
+                
+                # Try to extract JSON from the response if it's wrapped in markdown or other text
+                content = response.content.strip()
+                if content.startswith("```json"):
+                    content = content[7:]
+                if content.endswith("```"):
+                    content = content[:-3]
+                content = content.strip()
+                
+                try:
+                    result = json.loads(content)
+                except json.JSONDecodeError:
+                    print(f"Failed to parse JSON. Raw content: {repr(response.content)}")
+                    continue
+                
+                if result["relevance_score"] >= 6:  # Only include relevant papers
+                    filtered_papers.append(PaperItem(
+                        title=paper["title"],
+                        authors=paper["authors"],
+                        summary=result["summary"],
+                        url=paper["url"],
+                        year=paper["year"],
+                        citations=paper["citations"],
+                        relevance_score=result["relevance_score"]
+                    ))
+            except Exception as e:
+                print(f"Error filtering paper: {e}")
+                traceback.print_exc()
+                continue
+        
+        # Sort by relevance score
+        filtered_papers.sort(key=lambda x: x.relevance_score, reverse=True)
+        state.filtered_papers = filtered_papers[:5]  # Top 5 papers
+        
+        return state
+
     def _generate_newsletter(self, state: NewsletterState) -> NewsletterState:
         newsletter_prompt = ChatPromptTemplate.from_template("""
         Create an engaging newsletter for these topics: {topics}
         
         Today's date: {date}
         
-        Use the following curated articles to create a newsletter with:
+        Use the following curated content to create a newsletter with:
         1. A catchy subject line
         2. A brief introduction
-        3. Sections organized by topic or theme
-        4. For each article: title, summary, and link
-        5. A closing note
+        3. A "Latest News" section with the curated articles
+        4. A "Recent Papers" section with the academic papers
+        5. For each article/paper: title, summary, and link
+        6. A closing note
         
-        Articles:
+        News Articles:
         {articles}
         
-        Make it professional but engaging, suitable for email format.
+        Academic Papers:
+        {papers}
+        
+        Make it professional but engaging, suitable for email format. Clearly separate the news and papers sections.
         """)
         
         articles_text = ""
@@ -187,10 +357,23 @@ class NewsAgent:
    
 """
         
+        papers_text = ""
+        for i, paper in enumerate(state.filtered_papers, 1):
+            papers_text += f"""
+{i}. **{paper.title}** (Score: {paper.relevance_score})
+   Authors: {paper.authors}
+   Year: {paper.year}
+   Citations: {paper.citations}
+   Summary: {paper.summary}
+   URL: {paper.url}
+   
+"""
+        
         response = self.llm.invoke(newsletter_prompt.format(
             topics=", ".join(state.topics),
             date=datetime.now().strftime("%B %d, %Y"),
-            articles=articles_text
+            articles=articles_text,
+            papers=papers_text
         ))
         
         state.newsletter_content = response.content
@@ -200,12 +383,16 @@ class NewsAgent:
         workflow = StateGraph(NewsletterState)
         
         workflow.add_node("scrape_news", self._scrape_news)
+        workflow.add_node("scrape_papers", self._scrape_papers)
         workflow.add_node("filter_articles", self._filter_articles)
+        workflow.add_node("filter_papers", self._filter_papers)
         workflow.add_node("generate_newsletter", self._generate_newsletter)
         
         workflow.set_entry_point("scrape_news")
-        workflow.add_edge("scrape_news", "filter_articles")
-        workflow.add_edge("filter_articles", "generate_newsletter")
+        workflow.add_edge("scrape_news", "scrape_papers")
+        workflow.add_edge("scrape_papers", "filter_articles")
+        workflow.add_edge("filter_articles", "filter_papers")
+        workflow.add_edge("filter_papers", "generate_newsletter")
         workflow.add_edge("generate_newsletter", END)
         
         return workflow.compile()
