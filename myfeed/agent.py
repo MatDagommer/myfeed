@@ -4,13 +4,9 @@ from bs4 import BeautifulSoup
 import feedparser
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
-from langchain.agents import create_agent
-from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.graph import StateGraph, END
-from langgraph.graph.message import MessageGraph
 from pydantic import BaseModel
 import json
-import asyncio
 import traceback
 from datetime import datetime
 
@@ -118,19 +114,54 @@ class NewsAgent:
                 soup = BeautifulSoup(response.content, 'html.parser')
                 
                 papers = []
- 
+
                 for el in soup.select(".gs_r"):
-                    papers.append({
-                        "title": el.select(".gs_rt")[0].text,
-                        "title_link": el.select(".gs_rt a")[0]["href"],
-                        "id": el.select(".gs_rt a")[0]["id"],
-                        "displayed_link": el.select(".gs_a")[0].text,
-                        "snippet": el.select(".gs_rs")[0].text.replace("\n", ""),
-                        "cited_by_count": el.select(".gs_nph+ a")[0].text,
-                        "cited_link": "https://scholar.google.com" + el.select(".gs_nph+ a")[0]["href"],
-                        "versions_count": el.select("a~ a+ .gs_nph")[0].text,
-                        "versions_link": "https://scholar.google.com" + el.select("a~ a+ .gs_nph")[0]["href"] if el.select("a~ a+ .gs_nph")[0].text else "",
-                    })
+                    try:
+                        # Extract required fields with safety checks
+                        title_elem = el.select(".gs_rt")
+                        if not title_elem:
+                            continue
+                        
+                        title = title_elem[0].text
+                        print(title)
+                        
+                        # Get title link and id safely
+                        title_link_elem = el.select(".gs_rt a")
+                        title_link = title_link_elem[0]["href"] if title_link_elem else ""
+                        paper_id = title_link_elem[0].get("id", "") if title_link_elem else ""
+                        
+                        # Get author/publication info
+                        displayed_link_elem = el.select(".gs_a")
+                        displayed_link = displayed_link_elem[0].text if displayed_link_elem else ""
+                        
+                        # Get snippet
+                        snippet_elem = el.select(".gs_rs")
+                        snippet = snippet_elem[0].text.replace("\n", "") if snippet_elem else ""
+                        
+                        # Get citation info (optional)
+                        cited_elem = el.select(".gs_nph+ a")
+                        cited_by_count = cited_elem[0].text if cited_elem else ""
+                        cited_link = "https://scholar.google.com" + cited_elem[0]["href"] if cited_elem else ""
+                        
+                        # Get versions info (optional)
+                        versions_elem = el.select("a~ a+ .gs_nph")
+                        versions_count = versions_elem[0].text if versions_elem else ""
+                        versions_link = "https://scholar.google.com" + versions_elem[0]["href"] if versions_elem and versions_count else ""
+                        
+                        papers.append({
+                            "title": title,
+                            "title_link": title_link,
+                            "id": paper_id,
+                            "displayed_link": displayed_link,
+                            "snippet": snippet,
+                            "cited_by_count": cited_by_count,
+                            "cited_link": cited_link,
+                            "versions_count": versions_count,
+                            "versions_link": versions_link,
+                        })
+                    except Exception as e:
+                        print(f"Error processing paper element: {e}")
+                        continue
         
                 for i in range(len(papers)):
                     papers[i] = {key: value for key, value in papers[i].items() if value != "" and value is not None}
