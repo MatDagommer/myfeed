@@ -98,84 +98,115 @@ class NewsAgent:
             return ""
 
     def _scrape_papers(self, state: NewsletterState) -> NewsletterState:
-        papers = []
-        
+        """Scrape papers from OpenAlex API for given topics."""
+        all_papers = []
+
         for topic in state.topics:
             try:
-                # Construct Google Scholar search URL
-                search_query = topic.replace(" ", "+")
-                scholar_url = f"https://scholar.google.com/scholar?q={search_query}&hl=en&as_sdt=0%2C5&as_vis=1"
-                
-                headers = {
-                    'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                # Construct OpenAlex API URL
+                openalex_url = "https://api.openalex.org/works"
+                params = {
+                    "search": topic,
+                    "per_page": 10,  # Get top 10 results per topic
+                    "sort": "cited_by_count:desc",  # Sort by most cited
+                    "mailto": "myfeed@example.com",  # Polite pool
                 }
-                
-                response = requests.get(scholar_url, headers=headers, timeout=10)
-                soup = BeautifulSoup(response.content, 'html.parser')
-                
-                papers = []
 
-                for el in soup.select(".gs_r"):
+                headers = {
+                    'User-Agent': 'MyFeed/1.0 (mailto:myfeed@example.com)'
+                }
+
+                response = requests.get(openalex_url, params=params, headers=headers, timeout=30)
+                response.raise_for_status()
+                data = response.json()
+
+                for work in data.get("results", []):
                     try:
-                        # Extract required fields with safety checks
-                        title_elem = el.select(".gs_rt")
-                        if not title_elem:
+                        # Extract title
+                        title = work.get("title") or work.get("display_name", "")
+                        if not title:
                             continue
-                        
-                        title = title_elem[0].text
+
                         print(title)
-                        
-                        # Get title link and id safely
-                        title_link_elem = el.select(".gs_rt a")
-                        title_link = title_link_elem[0]["href"] if title_link_elem else ""
-                        paper_id = title_link_elem[0].get("id", "") if title_link_elem else ""
-                        
-                        # Get author/publication info
-                        displayed_link_elem = el.select(".gs_a")
-                        displayed_link = displayed_link_elem[0].text if displayed_link_elem else ""
-                        
-                        # Get snippet
-                        snippet_elem = el.select(".gs_rs")
-                        snippet = snippet_elem[0].text.replace("\n", "") if snippet_elem else ""
-                        
-                        # Get citation info (optional)
-                        cited_elem = el.select(".gs_nph+ a")
-                        cited_by_count = cited_elem[0].text if cited_elem else ""
-                        cited_link = "https://scholar.google.com" + cited_elem[0]["href"] if cited_elem else ""
-                        
-                        # Get versions info (optional)
-                        versions_elem = el.select("a~ a+ .gs_nph")
-                        versions_count = versions_elem[0].text if versions_elem else ""
-                        versions_link = "https://scholar.google.com" + versions_elem[0]["href"] if versions_elem and versions_count else ""
-                        
-                        papers.append({
+
+                        # Extract authors
+                        authorships = work.get("authorships", [])
+                        authors = ", ".join([
+                            a.get("author", {}).get("display_name", "")
+                            for a in authorships[:5]  # Limit to first 5 authors
+                            if a.get("author", {}).get("display_name")
+                        ])
+                        if len(authorships) > 5:
+                            authors += " et al."
+
+                        # Extract abstract from inverted index
+                        abstract = self._reconstruct_abstract(work.get("abstract_inverted_index"))
+
+                        # Extract URL - prefer DOI, then landing page
+                        doi = work.get("doi", "")
+                        primary_location = work.get("primary_location") or {}
+                        landing_page = primary_location.get("landing_page_url", "")
+                        url = doi if doi else landing_page
+
+                        # Extract other metadata
+                        openalex_id = work.get("id", "")
+                        publication_year = str(work.get("publication_year", ""))
+                        cited_by_count = str(work.get("cited_by_count", 0))
+
+                        # Get source/journal info
+                        source = primary_location.get("source") or {}
+                        source_name = source.get("display_name", "")
+
+                        paper = {
                             "title": title,
-                            "title_link": title_link,
-                            "id": paper_id,
-                            "authors": displayed_link,
-                            "summary": snippet,
+                            "url": url,
+                            "id": openalex_id,
+                            "authors": authors if authors else source_name,
+                            "summary": abstract,
+                            "year": publication_year,
                             "citations": cited_by_count,
-                            "cited_link": cited_link,
-                            "versions_count": versions_count,
-                            "versions_link": versions_link,
+                            "source": source_name,
                             "topics": topic
-                        })
+                        }
+
+                        # Filter out empty values
+                        paper = {k: v for k, v in paper.items() if v}
+                        all_papers.append(paper)
+
                     except Exception as e:
-                        print(f"Error processing paper element: {e}")
+                        print(f"Error processing paper: {e}")
                         continue
-        
-                for i in range(len(papers)):
-                    papers[i] = {key: value for key, value in papers[i].items() if value != "" and value is not None}
-        
-                print(papers)
-                        
+
+                print(f"Found {len(data.get('results', []))} papers for topic '{topic}'")
+
             except Exception as e:
                 print(f"Error scraping papers for topic '{topic}': {e}")
                 traceback.print_exc()
                 continue
-        
-        state.raw_papers = papers
+
+        state.raw_papers = all_papers
         return state
+
+    def _reconstruct_abstract(self, inverted_index: dict) -> str:
+        """Reconstruct abstract text from OpenAlex inverted index format."""
+        if not inverted_index:
+            return ""
+
+        try:
+            # Build list of (position, word) tuples
+            word_positions = []
+            for word, positions in inverted_index.items():
+                for pos in positions:
+                    word_positions.append((pos, word))
+
+            # Sort by position and join
+            word_positions.sort(key=lambda x: x[0])
+            abstract = " ".join([word for _, word in word_positions])
+
+            # Limit length
+            return abstract[:1000] if len(abstract) > 1000 else abstract
+        except Exception:
+            return ""
 
     def _filter_articles(self, state: NewsletterState) -> NewsletterState:
         filter_prompt = ChatPromptTemplate.from_template("""
@@ -268,20 +299,31 @@ class NewsAgent:
         
         for paper in state.raw_papers:
             try:
+                # Use .get() for safer access to optional fields
+                title = paper.get("title", "")
+                authors = paper.get("authors", "Unknown")
+                summary = paper.get("summary", "")
+                citations = paper.get("citations", "0")
+                url = paper.get("url", "")
+                year = paper.get("year", "")
+
+                if not title:
+                    continue
+
                 response = self.llm.invoke(filter_prompt.format(
                     topics=", ".join(state.topics),
-                    title=paper["title"],
-                    authors=paper["authors"],
-                    summary=paper["summary"],
-                    citations=paper["citations"]
+                    title=title,
+                    authors=authors,
+                    summary=summary,
+                    citations=citations
                 ))
-                
-                print(f"LLM Response for paper '{paper['title'][:50]}...': {response.content}")
-                
+
+                print(f"LLM Response for paper '{title[:50]}...': {response.content}")
+
                 if not response.content or not response.content.strip():
-                    print(f"Warning: Empty response from LLM for paper: {paper['title']}")
+                    print(f"Warning: Empty response from LLM for paper: {title}")
                     continue
-                
+
                 # Try to extract JSON from the response if it's wrapped in markdown or other text
                 content = response.content.strip()
                 if content.startswith("```json"):
@@ -289,21 +331,21 @@ class NewsAgent:
                 if content.endswith("```"):
                     content = content[:-3]
                 content = content.strip()
-                
+
                 try:
                     result = json.loads(content)
                 except json.JSONDecodeError:
                     print(f"Failed to parse JSON. Raw content: {repr(response.content)}")
                     continue
-                
+
                 if result["relevance_score"] >= 6:  # Only include relevant papers
                     filtered_papers.append(PaperItem(
-                        title=paper["title"],
-                        authors=paper["authors"],
+                        title=title,
+                        authors=authors,
                         summary=result["summary"],
-                        url=paper["url"],
-                        year=paper["year"],
-                        citations=paper["citations"],
+                        url=url,
+                        year=year,
+                        citations=citations,
                         relevance_score=result["relevance_score"]
                     ))
             except Exception as e:
