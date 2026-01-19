@@ -407,12 +407,12 @@ class NewsAgent:
 
         Use the following curated content to create a newsletter with:
         1. A catchy subject line
-        2. A brief introduction
+        2. An introduction that starts with: "Hey Matthieu, here's your daily list of selected papers and articles on your topics of interest:"
         3. A "Latest News" section with the curated articles
         4. A "Today's Papers" section with papers published today (if any)
         5. A "Recent Papers (Last 2 Weeks)" section with papers from the last two weeks
         6. For each article/paper: title, summary, and link
-        7. A closing note
+        7. A closing note that says exactly: "That's it for today. See you tomorrow!"
 
         News Articles:
         {articles}
