@@ -32,6 +32,7 @@ def mock_openalex_response():
                 "title": "Artificial Intelligence in Drug Discovery",
                 "display_name": "Artificial Intelligence in Drug Discovery",
                 "publication_year": 2023,
+                "publication_date": "2023-06-15",
                 "cited_by_count": 45,
                 "authorships": [
                     {
@@ -75,6 +76,7 @@ def mock_openalex_response():
                 "title": "ADME Properties Prediction Using Machine Learning",
                 "display_name": "ADME Properties Prediction Using Machine Learning",
                 "publication_year": 2023,
+                "publication_date": "2023-07-20",
                 "cited_by_count": 23,
                 "authorships": [
                     {
@@ -261,6 +263,7 @@ def test_scrape_papers_filters_empty_values(news_agent, newsletter_state):
                 "id": "https://openalex.org/W1234567890",
                 "title": "Test Paper",
                 "publication_year": 2023,
+                "publication_date": "2023-08-10",
                 "cited_by_count": 10,
                 "authorships": [],
                 "abstract_inverted_index": None,
