@@ -432,7 +432,7 @@ class NewsAgent:
 {i}. **{article.title}** (Score: {article.relevance_score})
    Source: {article.source}
    Summary: {article.summary}
-   URL: {article.url}
+   [Read more]({article.url})
 
 """
 
@@ -445,7 +445,7 @@ class NewsAgent:
    Year: {paper.year}
    Citations: {paper.citations}
    Summary: {paper.summary}
-   URL: {paper.url}
+   [Read paper]({paper.url})
 
 """
         else:
@@ -460,7 +460,7 @@ class NewsAgent:
    Year: {paper.year}
    Citations: {paper.citations}
    Summary: {paper.summary}
-   URL: {paper.url}
+   [Read paper]({paper.url})
 
 """
         else:

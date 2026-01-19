@@ -145,7 +145,10 @@ class EmailSender:
         
         # Convert bold text (**text** -> <strong>text</strong>)
         formatted_content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', formatted_content)
-        
+
+        # Convert Markdown links ([text](url) -> <a href="url">text</a>)
+        formatted_content = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', r'<a href="\2">\1</a>', formatted_content)
+
         # Handle paper sections - wrap papers in appropriate divs
         formatted_content = re.sub(r'(## Recent Papers.*?)(?=## |\Z)', self._format_papers_section, formatted_content, flags=re.DOTALL)
         
