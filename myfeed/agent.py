@@ -25,6 +25,7 @@ class PaperItem(BaseModel):
     year: str
     citations: str
     relevance_score: float
+    publication_date: str = ""  # Full publication date (YYYY-MM-DD)
 
 class NewsletterState(BaseModel):
     topics: List[str]
@@ -32,6 +33,8 @@ class NewsletterState(BaseModel):
     filtered_articles: List[NewsItem] = []
     raw_papers: List[Dict[str, Any]] = []
     filtered_papers: List[PaperItem] = []
+    today_papers: List[PaperItem] = []  # Papers from today
+    recent_papers: List[PaperItem] = []  # Papers from last 2 weeks
     newsletter_content: str = ""
 
 class NewsAgent:
@@ -108,7 +111,7 @@ class NewsAgent:
                 params = {
                     "search": topic,
                     "per_page": 10,  # Get top 10 results per topic
-                    "sort": "cited_by_count:desc",  # Sort by most cited
+                    "sort": "publication_date:desc",  # Sort by most recent
                     "mailto": "myfeed@example.com",  # Polite pool
                 }
 
@@ -151,6 +154,7 @@ class NewsAgent:
                         # Extract other metadata
                         openalex_id = work.get("id", "")
                         publication_year = str(work.get("publication_year", ""))
+                        publication_date = work.get("publication_date", "")
                         cited_by_count = str(work.get("cited_by_count", 0))
 
                         # Get source/journal info
@@ -164,6 +168,7 @@ class NewsAgent:
                             "authors": authors if authors else source_name,
                             "summary": abstract,
                             "year": publication_year,
+                            "publication_date": publication_date,
                             "citations": cited_by_count,
                             "source": source_name,
                             "topics": topic
@@ -277,16 +282,18 @@ class NewsAgent:
         return state
 
     def _filter_papers(self, state: NewsletterState) -> NewsletterState:
+        from datetime import datetime, timedelta
+
         filter_prompt = ChatPromptTemplate.from_template("""
         You are an academic newsletter curator. Given these topics of interest: {topics}
-        
+
         Rate the relevance of this research paper on a scale of 0-10 and provide a concise academic summary.
-        
+
         Paper Title: {title}
         Authors: {authors}
         Abstract/Summary: {summary}
         Citations: {citations}
-        
+
         Respond in JSON format:
         {{
             "relevance_score": <score>,
@@ -294,9 +301,15 @@ class NewsAgent:
             "reasoning": "<brief_reasoning>"
         }}
         """)
-        
-        filtered_papers = []
-        
+
+        # Calculate date ranges
+        today = datetime.now().date()
+        two_weeks_ago = today - timedelta(days=14)
+
+        today_papers = []
+        recent_papers = []
+        all_filtered_papers = []
+
         for paper in state.raw_papers:
             try:
                 # Use .get() for safer access to optional fields
@@ -306,6 +319,7 @@ class NewsAgent:
                 citations = paper.get("citations", "0")
                 url = paper.get("url", "")
                 year = paper.get("year", "")
+                publication_date = paper.get("publication_date", "")
 
                 if not title:
                     continue
@@ -339,49 +353,79 @@ class NewsAgent:
                     continue
 
                 if result["relevance_score"] >= 6:  # Only include relevant papers
-                    filtered_papers.append(PaperItem(
+                    paper_item = PaperItem(
                         title=title,
                         authors=authors,
                         summary=result["summary"],
                         url=url,
                         year=year,
                         citations=citations,
-                        relevance_score=result["relevance_score"]
-                    ))
+                        relevance_score=result["relevance_score"],
+                        publication_date=publication_date
+                    )
+
+                    # Categorize by date
+                    if publication_date:
+                        try:
+                            pub_date = datetime.strptime(publication_date, "%Y-%m-%d").date()
+                            if pub_date == today:
+                                today_papers.append(paper_item)
+                            elif pub_date >= two_weeks_ago:
+                                recent_papers.append(paper_item)
+                        except ValueError:
+                            # If date parsing fails, add to recent papers
+                            recent_papers.append(paper_item)
+                    else:
+                        # If no date, add to recent papers
+                        recent_papers.append(paper_item)
+
+                    all_filtered_papers.append(paper_item)
             except Exception as e:
                 print(f"Error filtering paper: {e}")
                 traceback.print_exc()
                 continue
-        
+
         # Sort by relevance score
-        filtered_papers.sort(key=lambda x: x.relevance_score, reverse=True)
-        state.filtered_papers = filtered_papers[:5]  # Top 5 papers
-        
+        today_papers.sort(key=lambda x: x.relevance_score, reverse=True)
+        recent_papers.sort(key=lambda x: x.relevance_score, reverse=True)
+
+        # Keep top 1-3 papers for each category
+        state.today_papers = today_papers[:3]
+        state.recent_papers = recent_papers[:3]
+
+        # Keep all filtered papers for backwards compatibility
+        all_filtered_papers.sort(key=lambda x: x.relevance_score, reverse=True)
+        state.filtered_papers = all_filtered_papers[:5]
+
         return state
 
     def _generate_newsletter(self, state: NewsletterState) -> NewsletterState:
         newsletter_prompt = ChatPromptTemplate.from_template("""
         Create an engaging newsletter for these topics: {topics}
-        
+
         Today's date: {date}
-        
+
         Use the following curated content to create a newsletter with:
         1. A catchy subject line
         2. A brief introduction
         3. A "Latest News" section with the curated articles
-        4. A "Recent Papers" section with the academic papers
-        5. For each article/paper: title, summary, and link
-        6. A closing note
-        
+        4. A "Today's Papers" section with papers published today (if any)
+        5. A "Recent Papers (Last 2 Weeks)" section with papers from the last two weeks
+        6. For each article/paper: title, summary, and link
+        7. A closing note
+
         News Articles:
         {articles}
-        
-        Academic Papers:
-        {papers}
-        
-        Make it professional but engaging, suitable for email format. Clearly separate the news and papers sections.
+
+        Today's Papers (Published Today):
+        {today_papers}
+
+        Recent Papers (Last 2 Weeks):
+        {recent_papers}
+
+        Make it professional but engaging, suitable for email format. Clearly separate all sections. If there are no papers for today, mention that there are no new papers published today and focus on the recent papers section.
         """)
-        
+
         articles_text = ""
         for i, article in enumerate(state.filtered_articles, 1):
             articles_text += f"""
@@ -389,28 +433,47 @@ class NewsAgent:
    Source: {article.source}
    Summary: {article.summary}
    URL: {article.url}
-   
+
 """
-        
-        papers_text = ""
-        for i, paper in enumerate(state.filtered_papers, 1):
-            papers_text += f"""
+
+        today_papers_text = ""
+        if state.today_papers:
+            for i, paper in enumerate(state.today_papers, 1):
+                today_papers_text += f"""
 {i}. **{paper.title}** (Score: {paper.relevance_score})
    Authors: {paper.authors}
    Year: {paper.year}
    Citations: {paper.citations}
    Summary: {paper.summary}
    URL: {paper.url}
-   
+
 """
-        
+        else:
+            today_papers_text = "No papers published today.\n"
+
+        recent_papers_text = ""
+        if state.recent_papers:
+            for i, paper in enumerate(state.recent_papers, 1):
+                recent_papers_text += f"""
+{i}. **{paper.title}** (Score: {paper.relevance_score})
+   Authors: {paper.authors}
+   Year: {paper.year}
+   Citations: {paper.citations}
+   Summary: {paper.summary}
+   URL: {paper.url}
+
+"""
+        else:
+            recent_papers_text = "No recent papers found in the last 2 weeks.\n"
+
         response = self.llm.invoke(newsletter_prompt.format(
             topics=", ".join(state.topics),
             date=datetime.now().strftime("%B %d, %Y"),
             articles=articles_text,
-            papers=papers_text
+            today_papers=today_papers_text,
+            recent_papers=recent_papers_text
         ))
-        
+
         state.newsletter_content = response.content
         return state
 
