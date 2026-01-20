@@ -120,6 +120,11 @@ class EmailSender:
             font-size: 14px;
             color: #7f8c8d;
         }
+        hr {
+            border: none;
+            border-top: 2px solid #bdc3c7;
+            margin: 30px 0;
+        }
     </style>
 </head>
 <body>
@@ -137,12 +142,15 @@ class EmailSender:
         # Enhanced markdown-like formatting
         import re
         formatted_content = content
-        
+
+        # Convert horizontal rules (--- -> <hr>)
+        formatted_content = re.sub(r'^---+\s*$', r'<hr>', formatted_content, flags=re.MULTILINE)
+
         # Convert headers (### Title -> <h3>Title</h3>)
         formatted_content = re.sub(r'^### (.*?)$', r'<h3>\1</h3>', formatted_content, flags=re.MULTILINE)
         formatted_content = re.sub(r'^## (.*?)$', r'<h2>\1</h2>', formatted_content, flags=re.MULTILINE)
         formatted_content = re.sub(r'^# (.*?)$', r'<h1>\1</h1>', formatted_content, flags=re.MULTILINE)
-        
+
         # Convert bold text (**text** -> <strong>text</strong>)
         formatted_content = re.sub(r'\*\*(.*?)\*\*', r'<strong>\1</strong>', formatted_content)
 
