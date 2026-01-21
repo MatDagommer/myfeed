@@ -27,6 +27,10 @@ class PaperItem(BaseModel):
     relevance_score: float
     publication_date: str = ""  # Full publication date (YYYY-MM-DD)
 
+class NewsletterContent(BaseModel):
+    """Structured output for newsletter generation - ensures LLM returns only body content without subject line."""
+    body: str
+
 class NewsletterState(BaseModel):
     topics: List[str]
     raw_articles: List[Dict[str, Any]] = []
@@ -401,9 +405,11 @@ class NewsAgent:
 
     def _generate_newsletter(self, state: NewsletterState) -> NewsletterState:
         newsletter_prompt = ChatPromptTemplate.from_template("""
-        Create an engaging newsletter for these topics: {topics}
+        Create an engaging newsletter BODY ONLY (no subject line) for these topics: {topics}
 
         Today's date: {date}
+
+        IMPORTANT: Generate ONLY the newsletter body content. Do NOT include a subject line or "Subject:" prefix.
 
         Use the following curated content to create a newsletter with:
         1. An introduction that starts with: "Hey Matthieu, here's your daily list of selected papers and articles on your topics of interest:"
@@ -465,7 +471,10 @@ class NewsAgent:
         else:
             recent_papers_text = "No recent papers found in the last 2 weeks.\n"
 
-        response = self.llm.invoke(newsletter_prompt.format(
+        # Use structured output to ensure LLM returns only body content without subject line
+        structured_llm = self.llm.with_structured_output(NewsletterContent)
+
+        response = structured_llm.invoke(newsletter_prompt.format(
             topics=", ".join(state.topics),
             date=datetime.now().strftime("%B %d, %Y"),
             articles=articles_text,
@@ -473,7 +482,7 @@ class NewsAgent:
             recent_papers=recent_papers_text
         ))
 
-        state.newsletter_content = response.content
+        state.newsletter_content = response.body
         return state
 
     def _create_graph(self) -> StateGraph:
