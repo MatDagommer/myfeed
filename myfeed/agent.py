@@ -115,7 +115,7 @@ class NewsAgent:
                 params = {
                     "search": topic,
                     "per_page": 10,  # Get top 10 results per topic
-                    "sort": "publication_date:desc",  # Sort by most recent
+                    "sort": "cited_by_count:desc",  # Sort by most cited (relevance)
                     "mailto": "myfeed@example.com",  # Polite pool
                 }
 
