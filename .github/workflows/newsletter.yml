@@ -2,8 +2,8 @@ name: Daily Newsletter
 
 on:
   schedule:
-    # Run every day at 8:00 AM UTC (adjust for your timezone)
-    - cron: '0 8 * * *'
+    # Run every day at 8:00 AM Central Time (1:00 PM UTC during CDT, 2:00 PM UTC during CST)
+    - cron: '0 13 * * *'
   # Allow manual triggering
   workflow_dispatch:
 
