@@ -78,9 +78,9 @@ class EmailSender:
             padding-bottom: 10px;
         }
         h2 {
-            color: #2980b9;
+            color: #0066cc;
             font-weight: bold;
-            font-size: 28px;
+            font-size: 32px;
             margin-top: 35px;
             margin-bottom: 30px;
             padding-bottom: 10px;
