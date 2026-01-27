@@ -78,13 +78,13 @@ class EmailSender:
             padding-bottom: 10px;
         }
         h2 {
-            color: #0066cc;
+            color: #1a73e8;
             font-weight: bold;
-            font-size: 32px;
+            font-size: 36px;
             margin-top: 35px;
             margin-bottom: 30px;
             padding-bottom: 10px;
-            border-bottom: 2px solid #3498db;
+            border-bottom: 3px solid #1a73e8;
         }
         h3 {
             color: #2980b9;
