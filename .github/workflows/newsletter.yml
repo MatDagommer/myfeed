@@ -4,7 +4,7 @@ on:
   schedule:
     # Run every day at 8:00 AM Central Standard Time (2:00 PM UTC)
     # Note: During CDT (summer), this will be 9:00 AM local time
-    - cron: '0 14 * * *'
+    - cron: '26 16 * * *'
   # Allow manual triggering
   workflow_dispatch:
 
