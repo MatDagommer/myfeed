@@ -12,15 +12,6 @@ jobs:
   send-newsletter:
     runs-on: ubuntu-latest
     steps:
-    - name: Only run at 12:55 America/New_York
-      shell: bash
-      run: |
-        now="$(TZ=America/New_York date +'%H:%M')"
-        if [ "$now" != "13:10" ]; then
-          echo "NY time is $now — skipping."
-          exit 0
-        fi
-        echo "NY time is 12:55 — running."
     - name: Checkout repository
       uses: actions/checkout@v4
       
