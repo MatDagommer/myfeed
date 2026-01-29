@@ -104,9 +104,9 @@ jobs:
         run: |
           uv build --sdist --wheel
 
-      - name: Publish package (trusted publishing)
-        if: github.event_name != 'pull_request'
-        run: uv publish --trusted-publishing always
+      # - name: Publish package (trusted publishing)
+      #   if: github.event_name != 'pull_request'
+      #   run: uv publish --trusted-publishing always
 
       - name: Push changes with tags
         if: github.event_name != 'pull_request'
