@@ -1,18 +1,35 @@
 name: Daily Newsletter
 
+# on:
+#   schedule:
+#     # Run every day at 8:00 AM Central Standard Time (2:00 PM UTC)
+#     # Note: During CDT (summer), this will be 9:00 AM local time
+#     - cron: '48 16 * * *'
+#   # Allow manual triggering
+#   workflow_dispatch:
+
+# jobs:
+#   send-newsletter:
+#     runs-on: ubuntu-latest
+    
+#     steps:
 on:
   schedule:
-    # Run every day at 8:00 AM Central Standard Time (2:00 PM UTC)
-    # Note: During CDT (summer), this will be 9:00 AM local time
-    - cron: '48 16 * * *'
-  # Allow manual triggering
-  workflow_dispatch:
+    - cron: "*/5 * * * *"   # every 15 minutes (UTC)
 
 jobs:
-  send-newsletter:
+  run:
     runs-on: ubuntu-latest
-    
     steps:
+    - name: Only run at 12:55 America/New_York
+      shell: bash
+      run: |
+        now="$(TZ=America/New_York date +'%H:%M')"
+        if [ "$now" != "12:55" ]; then
+          echo "NY time is $now — skipping."
+          exit 0
+        fi
+        echo "NY time is 12:55 — running."
     - name: Checkout repository
       uses: actions/checkout@v4
       
