@@ -16,7 +16,7 @@ jobs:
       shell: bash
       run: |
         now="$(TZ=America/New_York date +'%H:%M')"
-        if [ "$now" != "12:55" ]; then
+        if [ "$now" != "13:05" ]; then
           echo "NY time is $now — skipping."
           exit 0
         fi
