@@ -1,24 +1,15 @@
 name: Daily Newsletter
 
-# on:
-#   schedule:
-#     # Run every day at 8:00 AM Central Standard Time (2:00 PM UTC)
-#     # Note: During CDT (summer), this will be 9:00 AM local time
-#     - cron: '48 16 * * *'
-#   # Allow manual triggering
-#   workflow_dispatch:
-
-# jobs:
-#   send-newsletter:
-#     runs-on: ubuntu-latest
-    
-#     steps:
 on:
   schedule:
-    - cron: "*/5 * * * *"   # every 15 minutes (UTC)
+    # Run every day at 8:00 AM Central Standard Time (2:00 PM UTC)
+    # Note: During CDT (summer), this will be 9:00 AM local time
+    - cron: '*/5 * * * *'
+  # Allow manual triggering
+  workflow_dispatch:
 
 jobs:
-  run:
+  send-newsletter:
     runs-on: ubuntu-latest
     steps:
     - name: Only run at 12:55 America/New_York
