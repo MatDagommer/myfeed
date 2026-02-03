@@ -6,7 +6,7 @@ An automated newsletter system that uses an agent to scrape the web for relevant
 
 - 🤖 AI-powered content curation using LangGraph
 - 📧 Automated email delivery with HTML formatting
-- ⏰ Flexible scheduling (daily at 8am by default)
+- ⏰ Flexible scheduling (daily at 8am CT by default)
 - 🎯 Customizable topics of interest
 - 📰 Multi-source news aggregation from RSS feeds
 - 🔧 Easy configuration via environment variables
