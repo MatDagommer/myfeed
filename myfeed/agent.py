@@ -61,7 +61,6 @@ class NewsletterContent(BaseModel):
         
         # Latest News section
         if self.latest_news:
-            sections.append("---")
             sections.append("## Latest News")
             sections.append("")
             for i, article in enumerate(self.latest_news, 1):
@@ -72,7 +71,6 @@ class NewsletterContent(BaseModel):
                 sections.append("")
         
         # Today's Papers section
-        sections.append("---")
         sections.append("## Today's Papers")
         sections.append("")
         if self.todays_papers:
@@ -89,7 +87,6 @@ class NewsletterContent(BaseModel):
             sections.append("")
         
         # Recent Papers section
-        sections.append("---")
         sections.append("## Recent Papers (Last 2 Weeks)")
         sections.append("")
         if self.recent_papers:
@@ -106,7 +103,6 @@ class NewsletterContent(BaseModel):
             sections.append("")
         
         # Closing
-        sections.append("---")
         sections.append(self.closing_note)
         
         return "\n".join(sections)
