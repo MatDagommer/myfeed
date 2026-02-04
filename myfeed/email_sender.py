@@ -80,11 +80,11 @@ class EmailSender:
         h2 {
             color: #1a73e8;
             font-weight: bold;
-            font-size: 36px;
-            margin-top: 35px;
-            margin-bottom: 30px;
-            padding-bottom: 10px;
-            border-bottom: 3px solid #1a73e8;
+            font-size: 24px;
+            margin-top: 30px;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #1a73e8;
         }
         h3 {
             color: #2980b9;

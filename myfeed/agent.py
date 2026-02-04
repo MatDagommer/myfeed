@@ -27,9 +27,89 @@ class PaperItem(BaseModel):
     relevance_score: float
     publication_date: str = ""  # Full publication date (YYYY-MM-DD)
 
+class StructuredArticle(BaseModel):
+    title: str
+    source: str
+    summary: str
+    url: str
+    relevance_score: float
+
+class StructuredPaper(BaseModel):
+    title: str
+    authors: str
+    year: str
+    citations: str
+    summary: str
+    url: str
+    relevance_score: float
+
 class NewsletterContent(BaseModel):
-    """Structured output for newsletter generation - ensures LLM returns only body content without subject line."""
-    body: str
+    """Structured output for newsletter generation with separate sections for consistent formatting."""
+    introduction: str
+    latest_news: List[StructuredArticle]
+    todays_papers: List[StructuredPaper]
+    recent_papers: List[StructuredPaper]
+    closing_note: str
+    
+    def format(self) -> str:
+        """Format the newsletter content as a properly structured string."""
+        sections = []
+        
+        # Introduction
+        sections.append(self.introduction)
+        sections.append("")
+        
+        # Latest News section
+        if self.latest_news:
+            sections.append("---")
+            sections.append("## Latest News")
+            sections.append("")
+            for i, article in enumerate(self.latest_news, 1):
+                sections.append(f"{i}. **{article.title}** (Score: {article.relevance_score})")
+                sections.append(f"   Source: {article.source}")
+                sections.append(f"   Summary: {article.summary}")
+                sections.append(f"   [Read more]({article.url})")
+                sections.append("")
+        
+        # Today's Papers section
+        sections.append("---")
+        sections.append("## Today's Papers")
+        sections.append("")
+        if self.todays_papers:
+            for i, paper in enumerate(self.todays_papers, 1):
+                sections.append(f"{i}. **{paper.title}** (Score: {paper.relevance_score})")
+                sections.append(f"   Authors: {paper.authors}")
+                sections.append(f"   Year: {paper.year}")
+                sections.append(f"   Citations: {paper.citations}")
+                sections.append(f"   Summary: {paper.summary}")
+                sections.append(f"   [Read paper]({paper.url})")
+                sections.append("")
+        else:
+            sections.append("No papers published today.")
+            sections.append("")
+        
+        # Recent Papers section
+        sections.append("---")
+        sections.append("## Recent Papers (Last 2 Weeks)")
+        sections.append("")
+        if self.recent_papers:
+            for i, paper in enumerate(self.recent_papers, 1):
+                sections.append(f"{i}. **{paper.title}** (Score: {paper.relevance_score})")
+                sections.append(f"   Authors: {paper.authors}")
+                sections.append(f"   Year: {paper.year}")
+                sections.append(f"   Citations: {paper.citations}")
+                sections.append(f"   Summary: {paper.summary}")
+                sections.append(f"   [Read paper]({paper.url})")
+                sections.append("")
+        else:
+            sections.append("No recent papers found in the last 2 weeks.")
+            sections.append("")
+        
+        # Closing
+        sections.append("---")
+        sections.append(self.closing_note)
+        
+        return "\n".join(sections)
 
 class NewsletterState(BaseModel):
     topics: List[str]
@@ -44,7 +124,7 @@ class NewsletterState(BaseModel):
 class NewsAgent:
     def __init__(self, openai_api_key: str):
         self.llm = ChatOpenAI(
-            model="gpt-4o-mini",
+            model="gpt-4.1",
             openai_api_key=openai_api_key,
             temperature=0.3
         )
@@ -405,84 +485,77 @@ class NewsAgent:
 
     def _generate_newsletter(self, state: NewsletterState) -> NewsletterState:
         newsletter_prompt = ChatPromptTemplate.from_template("""
-        Create an engaging newsletter BODY ONLY (no subject line) for these topics: {topics}
+        Create a structured newsletter for these topics: {topics}
 
         Today's date: {date}
 
-        IMPORTANT: Generate ONLY the newsletter body content. Do NOT include a subject line or "Subject:" prefix.
+        Generate a newsletter with the following structure:
+        
+        1. **introduction**: Start with "Hey Matthieu, here's your daily list of selected papers and articles on your topics of interest:"
+        
+        2. **latest_news**: Convert the provided articles into StructuredArticle objects
+        
+        3. **todays_papers**: Convert today's papers into StructuredPaper objects (empty list if none)
+        
+        4. **recent_papers**: Convert recent papers into StructuredPaper objects (empty list if none)
+        
+        5. **closing_note**: Use exactly "That's it for today. See you tomorrow!"
 
-        Use the following curated content to create a newsletter with:
-        1. An introduction that starts with: "Hey Matthieu, here's your daily list of selected papers and articles on your topics of interest:"
-        2. A "Latest News" section with the curated articles
-        3. A "Today's Papers" section with papers published today (if any)
-        4. A "Recent Papers (Last 2 Weeks)" section with papers from the last two weeks
-        5. For each article/paper: title, summary, and link
-        6. A closing note that says exactly: "That's it for today. See you tomorrow!"
+        News Articles to convert:
+        {articles_data}
 
-        News Articles:
-        {articles}
+        Today's Papers to convert:
+        {today_papers_data}
 
-        Today's Papers (Published Today):
-        {today_papers}
+        Recent Papers to convert:
+        {recent_papers_data}
 
-        Recent Papers (Last 2 Weeks):
-        {recent_papers}
-
-        Make it professional but engaging, suitable for email format. Clearly separate all sections with horizontal rules (---). If there are no papers for today, mention that there are no new papers published today and focus on the recent papers section.
+        For articles, make sure to include: title, source, summary (improve if needed), url, relevance_score.
+        For papers, make sure to include: title, authors, year, citations, summary (improve if needed), url, relevance_score.
         """)
 
-        articles_text = ""
-        for i, article in enumerate(state.filtered_articles, 1):
-            articles_text += f"""
-{i}. **{article.title}** (Score: {article.relevance_score})
-   Source: {article.source}
-   Summary: {article.summary}
-   [Read more]({article.url})
+        # Prepare data for the LLM
+        articles_data = [{
+            "title": article.title,
+            "source": article.source,
+            "summary": article.summary,
+            "url": article.url,
+            "relevance_score": article.relevance_score
+        } for article in state.filtered_articles]
 
-"""
+        today_papers_data = [{
+            "title": paper.title,
+            "authors": paper.authors,
+            "year": paper.year,
+            "citations": paper.citations,
+            "summary": paper.summary,
+            "url": paper.url,
+            "relevance_score": paper.relevance_score
+        } for paper in state.today_papers]
 
-        today_papers_text = ""
-        if state.today_papers:
-            for i, paper in enumerate(state.today_papers, 1):
-                today_papers_text += f"""
-{i}. **{paper.title}** (Score: {paper.relevance_score})
-   Authors: {paper.authors}
-   Year: {paper.year}
-   Citations: {paper.citations}
-   Summary: {paper.summary}
-   [Read paper]({paper.url})
+        recent_papers_data = [{
+            "title": paper.title,
+            "authors": paper.authors,
+            "year": paper.year,
+            "citations": paper.citations,
+            "summary": paper.summary,
+            "url": paper.url,
+            "relevance_score": paper.relevance_score
+        } for paper in state.recent_papers]
 
-"""
-        else:
-            today_papers_text = "No papers published today.\n"
-
-        recent_papers_text = ""
-        if state.recent_papers:
-            for i, paper in enumerate(state.recent_papers, 1):
-                recent_papers_text += f"""
-{i}. **{paper.title}** (Score: {paper.relevance_score})
-   Authors: {paper.authors}
-   Year: {paper.year}
-   Citations: {paper.citations}
-   Summary: {paper.summary}
-   [Read paper]({paper.url})
-
-"""
-        else:
-            recent_papers_text = "No recent papers found in the last 2 weeks.\n"
-
-        # Use structured output to ensure LLM returns only body content without subject line
+        # Use structured output with the NewsletterContent schema
         structured_llm = self.llm.with_structured_output(NewsletterContent)
 
         response = structured_llm.invoke(newsletter_prompt.format(
             topics=", ".join(state.topics),
             date=datetime.now().strftime("%B %d, %Y"),
-            articles=articles_text,
-            today_papers=today_papers_text,
-            recent_papers=recent_papers_text
+            articles_data=articles_data,
+            today_papers_data=today_papers_data,
+            recent_papers_data=recent_papers_data
         ))
 
-        state.newsletter_content = response.body
+        # Use the format method to generate the final newsletter content
+        state.newsletter_content = response.format()
         return state
 
     def _create_graph(self) -> StateGraph:
