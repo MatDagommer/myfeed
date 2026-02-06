@@ -1,4 +1,4 @@
-# MyFeed: My AI-Powered Newsletter
+# MyFeed: My AI-Powered Newsletter Generator
 
 An automated newsletter system that uses an agent to scrape the web for relevant articles based on my interests and sends me a personalized daily newsletter.
 
