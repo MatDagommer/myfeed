@@ -67,7 +67,7 @@ The project includes a GitHub workflow for automated daily newsletters:
    TIMEZONE=UTC
    ```
 
-2. **Push to GitHub** - The workflow runs automatically at 8 AM UTC daily
+2. **Push to GitHub** - The workflow runs automatically at 9 AM UTC daily
 
 3. **Manual trigger** - Go to Actions tab → "Daily Newsletter" → "Run workflow"
 
