@@ -96,6 +96,14 @@ class EmailSender:
         a:hover {
             text-decoration: underline;
         }
+        .positive-article {
+            border-left: 4px solid #27ae60;
+            padding-left: 15px;
+            margin: 20px 0;
+            background-color: #f0f9f4;
+            padding: 15px;
+            border-radius: 5px;
+        }
         .article {
             border-left: 4px solid #3498db;
             padding-left: 15px;
@@ -164,9 +172,12 @@ class EmailSender:
 
         # Handle paper sections - wrap papers in appropriate divs
         formatted_content = re.sub(r'(## Recent Papers.*?)(?=## |\Z)', self._format_papers_section, formatted_content, flags=re.DOTALL)
-        
-        # Handle news sections - wrap articles in appropriate divs
-        formatted_content = re.sub(r'(## Latest News.*?)(?=## Recent Papers|## |\Z)', self._format_news_section, formatted_content, flags=re.DOTALL)
+
+        # Handle positive news section - wrap positive articles in green divs
+        formatted_content = re.sub(r'(## Positive News.*?)(?=## Tech News|## |\Z)', self._format_positive_news_section, formatted_content, flags=re.DOTALL)
+
+        # Handle tech news sections - wrap articles in blue divs
+        formatted_content = re.sub(r'(## Tech News.*?)(?=## Today|## Recent Papers|## |\Z)', self._format_news_section, formatted_content, flags=re.DOTALL)
         
         # Convert paragraphs (double newlines)
         formatted_content = formatted_content.replace('\n\n', '</p><p>')
@@ -189,6 +200,13 @@ class EmailSender:
         # Wrap individual papers in paper divs
         import re
         content = re.sub(r'(\d+\.\s+<strong>.*?</strong>.*?)(?=\d+\.\s+<strong>|\Z)', r'<div class="paper">\1</div>', content, flags=re.DOTALL)
+        return content
+
+    def _format_positive_news_section(self, match):
+        content = match.group(1)
+        # Wrap individual positive articles in positive-article divs
+        import re
+        content = re.sub(r'(\d+\.\s+<strong>.*?</strong>.*?)(?=\d+\.\s+<strong>|\Z)', r'<div class="positive-article">\1</div>', content, flags=re.DOTALL)
         return content
 
     def _format_news_section(self, match):

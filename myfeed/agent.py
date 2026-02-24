@@ -46,6 +46,7 @@ class StructuredPaper(BaseModel):
 class NewsletterContent(BaseModel):
     """Structured output for newsletter generation with separate sections for consistent formatting."""
     introduction: str
+    positive_news: List[StructuredArticle]
     latest_news: List[StructuredArticle]
     todays_papers: List[StructuredPaper]
     recent_papers: List[StructuredPaper]
@@ -54,14 +55,25 @@ class NewsletterContent(BaseModel):
     def format(self) -> str:
         """Format the newsletter content as a properly structured string."""
         sections = []
-        
+
         # Introduction
         sections.append(self.introduction)
         sections.append("")
-        
-        # Latest News section
+
+        # Positive News section (FIRST)
+        if self.positive_news:
+            sections.append("## Positive News")
+            sections.append("")
+            for i, article in enumerate(self.positive_news, 1):
+                sections.append(f"{i}. **{article.title}** (Score: {article.relevance_score})")
+                sections.append(f"   Source: {article.source}")
+                sections.append(f"   Summary: {article.summary}")
+                sections.append(f"   [Read more]({article.url})")
+                sections.append("")
+
+        # Tech News section (renamed from Latest News)
         if self.latest_news:
-            sections.append("## Latest News")
+            sections.append("## Tech News")
             sections.append("")
             for i, article in enumerate(self.latest_news, 1):
                 sections.append(f"{i}. **{article.title}** (Score: {article.relevance_score})")
@@ -109,6 +121,8 @@ class NewsletterContent(BaseModel):
 
 class NewsletterState(BaseModel):
     topics: List[str]
+    raw_positive_articles: List[Dict[str, Any]] = []
+    filtered_positive_articles: List[NewsItem] = []
     raw_articles: List[Dict[str, Any]] = []
     filtered_articles: List[NewsItem] = []
     raw_papers: List[Dict[str, Any]] = []
@@ -163,22 +177,68 @@ class NewsAgent:
         try:
             response = requests.get(url, timeout=10)
             soup = BeautifulSoup(response.content, 'html.parser')
-            
+
             # Remove script and style elements
             for script in soup(["script", "style"]):
                 script.decompose()
-            
+
             # Get text content
             text = soup.get_text()
             lines = (line.strip() for line in text.splitlines())
             chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
             text = ' '.join(chunk for chunk in chunks if chunk)
-            
+
             return text[:1000]  # Limit content length
         except Exception as e:
             print(f"Error extracting content from URL: {e}")
             traceback.print_exc()
             return ""
+
+    def _scrape_positive_news(self, state: NewsletterState) -> NewsletterState:
+        """Scrape positive news from curated good news RSS feeds."""
+        sources = [
+            "https://www.goodnewsnetwork.org/feed/",
+            "https://www.positive.news/feed/",
+            "https://www.goodnewsnetwork.org/category/news/world/feed/",
+            "https://www.goodnewsnetwork.org/category/news/science/feed/",
+            "https://www.euronews.com/green/rss",
+        ]
+
+        articles = []
+
+        for source_url in sources:
+            try:
+                feed = feedparser.parse(source_url)
+                # Get only the TOP 1 most recent article from each source
+                if feed.entries:
+                    entry = feed.entries[0]
+                    articles.append({
+                        "title": entry.title,
+                        "summary": getattr(entry, 'summary', ''),
+                        "url": entry.link,
+                        "source": feed.feed.title,
+                        "published": getattr(entry, 'published', ''),
+                    })
+            except Exception as e:
+                print(f"Error scraping positive news from {source_url}: {e}")
+                traceback.print_exc()
+                continue
+
+        # Convert to NewsItem format with default high relevance
+        # No LLM filtering needed - these are curated positive sources
+        filtered_positive = []
+        for article in articles[:5]:  # Ensure exactly 5 stories maximum
+            filtered_positive.append(NewsItem(
+                title=article["title"],
+                summary=article["summary"],
+                url=article["url"],
+                source=article["source"],
+                relevance_score=8.0  # Default high score for curated positive content
+            ))
+
+        state.raw_positive_articles = articles
+        state.filtered_positive_articles = filtered_positive
+        return state
 
     def _scrape_papers(self, state: NewsletterState) -> NewsletterState:
         """Scrape papers from OpenAlex API for given topics."""
@@ -486,18 +546,23 @@ class NewsAgent:
         Today's date: {date}
 
         Generate a newsletter with the following structure:
-        
-        1. **introduction**: Start with "Hey Matthieu, here's your daily list of selected papers and articles on your topics of interest:"
-        
-        2. **latest_news**: Convert the provided articles into StructuredArticle objects
-        
-        3. **todays_papers**: Convert today's papers into StructuredPaper objects (empty list if none)
-        
-        4. **recent_papers**: Convert recent papers into StructuredPaper objects (empty list if none)
-        
-        5. **closing_note**: Use exactly "That's it for today. See you tomorrow!"
 
-        News Articles to convert:
+        1. **introduction**: Start with "Hey Matthieu, here's your daily list of positive news and selected papers and articles on your topics of interest:"
+
+        2. **positive_news**: Convert the provided positive articles into StructuredArticle objects (THIS COMES FIRST in the newsletter)
+
+        3. **latest_news**: Convert the tech news articles into StructuredArticle objects (displays as "Tech News")
+
+        4. **todays_papers**: Convert today's papers into StructuredPaper objects (empty list if none)
+
+        5. **recent_papers**: Convert recent papers into StructuredPaper objects (empty list if none)
+
+        6. **closing_note**: Use exactly "That's it for today. See you tomorrow!"
+
+        Positive News Articles to convert:
+        {positive_articles_data}
+
+        Tech News Articles to convert:
         {articles_data}
 
         Today's Papers to convert:
@@ -511,6 +576,14 @@ class NewsAgent:
         """)
 
         # Prepare data for the LLM
+        positive_articles_data = [{
+            "title": article.title,
+            "source": article.source,
+            "summary": article.summary,
+            "url": article.url,
+            "relevance_score": article.relevance_score
+        } for article in state.filtered_positive_articles]
+
         articles_data = [{
             "title": article.title,
             "source": article.source,
@@ -545,6 +618,7 @@ class NewsAgent:
         response = structured_llm.invoke(newsletter_prompt.format(
             topics=", ".join(state.topics),
             date=datetime.now().strftime("%B %d, %Y"),
+            positive_articles_data=positive_articles_data,
             articles_data=articles_data,
             today_papers_data=today_papers_data,
             recent_papers_data=recent_papers_data
@@ -556,14 +630,16 @@ class NewsAgent:
 
     def _create_graph(self) -> StateGraph:
         workflow = StateGraph(NewsletterState)
-        
+
+        workflow.add_node("scrape_positive_news", self._scrape_positive_news)
         workflow.add_node("scrape_news", self._scrape_news)
         workflow.add_node("scrape_papers", self._scrape_papers)
         workflow.add_node("filter_articles", self._filter_articles)
         workflow.add_node("filter_papers", self._filter_papers)
         workflow.add_node("generate_newsletter", self._generate_newsletter)
-        
-        workflow.set_entry_point("scrape_news")
+
+        workflow.set_entry_point("scrape_positive_news")
+        workflow.add_edge("scrape_positive_news", "scrape_news")
         workflow.add_edge("scrape_news", "scrape_papers")
         workflow.add_edge("scrape_papers", "filter_articles")
         workflow.add_edge("filter_articles", "filter_papers")
