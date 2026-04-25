@@ -5,8 +5,8 @@ from .agent import NewsAgent
 from .email_sender import EmailSender
 
 class NewsletterGenerator:
-    def __init__(self, openai_api_key: str, email_sender: EmailSender, topics: List[str]):
-        self.agent = NewsAgent(openai_api_key)
+    def __init__(self, mistral_api_key: str, email_sender: EmailSender, topics: List[str]):
+        self.agent = NewsAgent(mistral_api_key)
         self.email_sender = email_sender
         self.topics = topics
 

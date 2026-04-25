@@ -33,7 +33,7 @@ jobs:
     - name: Generate and send newsletter
       run: |
         uv run python main.py run-once \
-          --openai-api-key "${{ secrets.OPENAI_API_KEY }}" \
+          --mistral-api-key "${{ secrets.MISTRAL_API_KEY }}" \
           --smtp-server "${{ secrets.SMTP_SERVER }}" \
           --smtp-port "${{ secrets.SMTP_PORT }}" \
           --email-address "${{ secrets.EMAIL_ADDRESS }}" \

@@ -2,7 +2,7 @@ from typing import List, Dict, Any
 import requests
 from bs4 import BeautifulSoup
 import feedparser
-from langchain_openai import ChatOpenAI
+from langchain_mistralai import ChatMistralAI
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import StateGraph, END
 from pydantic import BaseModel
@@ -132,10 +132,10 @@ class NewsletterState(BaseModel):
     newsletter_content: str = ""
 
 class NewsAgent:
-    def __init__(self, openai_api_key: str):
-        self.llm = ChatOpenAI(
-            model="gpt-4.1",
-            openai_api_key=openai_api_key,
+    def __init__(self, mistral_api_key: str):
+        self.llm = ChatMistralAI(
+            model="mistral-large-latest",
+            mistral_api_key=mistral_api_key,
             temperature=0.3
         )
         self.graph = self._create_graph()

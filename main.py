@@ -13,8 +13,8 @@ def main():
     parser = argparse.ArgumentParser(description='AI-Powered Newsletter System')
     parser.add_argument('command', choices=['test', 'run-once', 'config'], 
                        help='Command to execute')
-    parser.add_argument('--openai-api-key', required=True,
-                       help='OpenAI API key')
+    parser.add_argument('--mistral-api-key', required=True,
+                       help='Mistral API key')
     parser.add_argument('--smtp-server', default="smtp.gmail.com",
                        help='SMTP server (default: smtp.gmail.com)')
     parser.add_argument('--smtp-port', type=int, default=587,
@@ -55,7 +55,7 @@ def main():
             # Test newsletter generation and sending
             print("Generating test newsletter...")
             generator = NewsletterGenerator(
-                openai_api_key=args.openai_api_key,
+                mistral_api_key=args.mistral_api_key,
                 email_sender=email_sender,
                 topics=topics_list
             )
@@ -75,7 +75,7 @@ def main():
             to_email=args.to_email
         )
         generator = NewsletterGenerator(
-            openai_api_key=args.openai_api_key,
+            mistral_api_key=args.mistral_api_key,
             email_sender=email_sender,
             topics=topics_list
         )

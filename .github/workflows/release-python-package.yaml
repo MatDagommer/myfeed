@@ -86,10 +86,10 @@ jobs:
       - name: Write release notes
         if: github.event_name != 'pull_request'
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
         run: |
           uv tool install llamabot[cli] --python 3.12 --python-preference only-managed --force
-          llamabot configure default-model --model-name="${{ secrets.DEFAULT_LANGUAGE_MODEL }}"
+          llamabot configure default-model --model-name="mistral/mistral-large-latest"
           llamabot git write-release-notes
 
       - name: Commit release notes
