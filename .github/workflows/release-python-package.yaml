@@ -90,6 +90,7 @@ jobs:
         run: |
           uv tool install llamabot[cli] --python 3.12 --python-preference only-managed --force
           echo 'DEFAULT_MODEL=mistral/mistral-large-latest' >> ~/.llamabotrc
+          export DEFAULT_MODEL=mistral/mistral-large-latest
           llamabot git write-release-notes
 
       - name: Commit release notes
