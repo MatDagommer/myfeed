@@ -4,12 +4,13 @@ An automated newsletter system that uses an agent to scrape the web for relevant
 
 ## Features
 
-- 🤖 AI-powered content curation using LangGraph
+- 🤖 AI-powered content curation using LangGraph + Mistral AI
 - 📧 Automated email delivery with HTML formatting
-- ⏰ Flexible scheduling (daily at 8am CT by default)
+- ⏰ Flexible scheduling (daily at 8am CST by default)
 - 🎯 Customizable topics of interest
 - 📰 Multi-source news aggregation from RSS feeds
-- 🔧 Easy configuration via environment variables
+- 🎓 Academic paper discovery via OpenAlex API
+- 🌟 Positive news section alongside tech content
 
 ## Setup
 
@@ -18,14 +19,8 @@ An automated newsletter system that uses an agent to scrape the web for relevant
    uv sync
    ```
 
-2. **Configuration**
-   Copy `.env.example` to `.env` and fill in your details:
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Edit `.env` with:
-   - `OPENAI_API_KEY`: Your OpenAI API key
+2. **Required Credentials**
+   - `MISTRAL_API_KEY`: Your Mistral AI API key
    - `EMAIL_ADDRESS`: Your Gmail address
    - `EMAIL_PASSWORD`: Your Gmail app password (not your regular password)
    - `TO_EMAIL`: Where to send the newsletter (can be the same as EMAIL_ADDRESS)
@@ -38,17 +33,35 @@ An automated newsletter system that uses an agent to scrape the web for relevant
 
 ## Usage
 
-- **Test Configuration**: `uv run python main.py test`
-- **Generate One Newsletter**: `uv run python main.py run-once`
-- **Start Scheduler**: `uv run python main.py start`
-- **View Configuration**: `uv run python main.py config`
+All commands require the following flags:
+
+```
+--mistral-api-key     Your Mistral API key
+--email-address       Gmail address for sending
+--email-password      Gmail app password
+--to-email            Recipient email address
+--topics              Comma-separated list of interests (optional)
+```
+
+- **Test Configuration**:
+  ```bash
+  uv run python main.py test --mistral-api-key <key> --email-address <addr> --email-password <pwd> --to-email <addr>
+  ```
+- **Generate One Newsletter**:
+  ```bash
+  uv run python main.py run-once --mistral-api-key <key> --email-address <addr> --email-password <pwd> --to-email <addr>
+  ```
+- **View Configuration**:
+  ```bash
+  uv run python main.py config --mistral-api-key <key> --email-address <addr> --email-password <pwd> --to-email <addr>
+  ```
 
 ## How It Works
 
-1. **Scraping**: The LangGraph agent fetches articles from multiple tech news sources
-2. **Filtering**: AI analyzes each article's relevance to your specified topics
+1. **Scraping**: The LangGraph agent fetches articles from multiple tech news sources, positive news RSS feeds, and academic papers via the OpenAlex API
+2. **Filtering**: Mistral AI analyzes each article's relevance to your specified topics (scores ≥6/10 are kept)
 3. **Curation**: Top articles are selected and summarized
-4. **Delivery**: A formatted newsletter is sent to your email
+4. **Delivery**: A formatted newsletter is sent to your email with separate sections for positive news, tech news, and papers
 
 ## GitHub Actions Deployment
 
@@ -56,28 +69,26 @@ The project includes a GitHub workflow for automated daily newsletters:
 
 1. **Set up repository secrets** (Settings → Secrets and variables → Actions):
    ```
-   OPENAI_API_KEY=your_openai_api_key
+   MISTRAL_API_KEY=your_mistral_api_key
    EMAIL_ADDRESS=your_email@gmail.com
    EMAIL_PASSWORD=your_app_password
    TO_EMAIL=your_email@gmail.com
    TOPICS=AI,Python,Technology,Startups
    SMTP_SERVER=smtp.gmail.com
    SMTP_PORT=587
-   NEWSLETTER_TIME=08:00
-   TIMEZONE=UTC
    ```
 
-2. **Push to GitHub** - The workflow runs automatically at 9 AM UTC daily
+2. **Push to GitHub** - The workflow runs automatically at 14:00 UTC (8:00 AM CST) daily
 
 3. **Manual trigger** - Go to Actions tab → "Daily Newsletter" → "Run workflow"
 
 4. **Timezone adjustment** - Modify the cron schedule in `.github/workflows/newsletter.yml`:
-   - `0 8 * * *` = 8:00 AM UTC
+   - `0 14 * * *` = 8:00 AM CST (UTC-6) / 9:00 AM CDT (UTC-5)
    - `0 13 * * *` = 8:00 AM EST (UTC-5)
-   - `0 15 * * *` = 8:00 AM PST (UTC-8)
+   - `0 16 * * *` = 8:00 AM PST (UTC-8)
 
 ## Customization
 
-- **Topics**: Edit the `TOPICS` field in `.env` or GitHub secrets
-- **Schedule**: Change cron schedule in workflow file and `NEWSLETTER_TIME`
-- **Sources**: Modify the RSS feed list in `src/agent.py`
+- **Topics**: Pass `--topics` flag when running, or update the `TOPICS` secret in GitHub Actions
+- **Schedule**: Change the cron schedule in `.github/workflows/newsletter.yml`
+- **Sources**: Modify the RSS feed list in `myfeed/agent.py`
